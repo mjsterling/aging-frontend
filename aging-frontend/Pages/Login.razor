@@ -1,0 +1,94 @@
+﻿@page "/login"
+@using System.Text.Json;
+@using System.Text.Json.Serialization;
+@using System.Text.RegularExpressions;
+@using aging_frontend.Components.Icons;
+@using aging_frontend.Data;
+@inject IHttpClientFactory ClientFactory;
+@inject IJSRuntime JSRuntime;
+
+<PageTitle>Login</PageTitle>
+
+<main class="h-full w-full flex flex-col justify-center items-center p-8 bg-gray-900">
+
+<h1>Old Souls</h1>
+
+<form @onsubmit="@Submit" class="w-72 p-5 flex flex-col gap-4 justify-center items-center shadow shadow-gray-500 rounded-md">
+    <div class="w-full h-20 flex flex-col items-start mb-4">
+        <span class="text-[12px] w-full text-blue-400 pb-1">Email</span>
+        <div class="w-full h-fit relative">
+        <input class="textbox" type="text" @bind="@email" placeholder="Email" />
+        <At />
+        </div>
+        <span class="text-sm text-red-500 py-2">@emailError</span>
+    </div>
+    <div class="w-full h-20 flex flex-col items-start mb-4">
+        <span class="text-[12px] w-full text-blue-400 pb-1">Password</span>
+        <div class="w-full h-fit relative">
+        <input class="textbox" type="@passwordField()" @bind="@password" placeholder="Password" />
+        <span @onclick="@toggleShowPassword" class="transition-all cursor-pointer hover:opacity-70 h-5 w-5 absolute left-3 top-4">
+           <Eye showPassword="@showPassword" />
+         </span>
+        </div>
+        <span class="text-[12px] h-[12px] text-red-500">@passwordError</span>
+        </div>
+
+    <input type="submit" value="Login" class="contained" />
+
+</form>
+
+</main>
+
+@code {
+    public string email = "";
+    public string emailError = "";
+    public string password = "";
+    public string passwordError = "";
+    public bool showPassword = false;
+    public void toggleShowPassword()
+    {
+        showPassword = !showPassword;
+    }
+    public string passwordField()
+    {
+        return showPassword ? "text" : "password";
+    }
+
+    public string token = "";
+
+    protected async Task Submit()
+    {
+        System.Diagnostics.Debug.WriteLine("Trying Login");
+        emailError = "";
+        passwordError = "";
+        if(!Regex.IsMatch(email, @"\w+@\w+\.\w+"))
+        {
+            emailError = "Not a valid email address.";
+            return;
+        }
+        if(password.Length < 6)
+        {
+            passwordError = "Password too short.";
+            return;
+        }
+        var request = new HttpRequestMessage(HttpMethod.Post, API.Url + "login");
+        request.Content = JsonContent.Create(new { email = email, password = password });
+
+        var client = ClientFactory.CreateClient();
+        var response = await client.SendAsync(request);
+
+        if(response.IsSuccessStatusCode)
+        {
+            using var responseStream = await response.Content.ReadAsStreamAsync();
+
+            var res = await JsonSerializer.DeserializeAsync<ResponseBody>(responseStream);
+            return;
+        }
+        return;
+    }
+
+    public class ResponseBody
+    {
+        public string? data { get; set; }
+    }
+}
